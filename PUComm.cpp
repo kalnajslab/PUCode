@@ -219,7 +219,7 @@ bool PUComm::RX_UpdateGPS(int * ZephyrGPSTime, double * ZephyrGPSlat, double * Z
     return true;
 }
 
-bool PUComm::TX_SendStatus(int PUTime, float VBattery, float ICharge, float Therm1T, float Therm2T)
+bool PUComm::TX_Status(int PUTime, float VBattery, float ICharge, float Therm1T, float Therm2T)
 {
     if (!Add_int(PUTime)) return false;
     if (!Add_float(VBattery)) return false;
@@ -232,7 +232,7 @@ bool PUComm::TX_SendStatus(int PUTime, float VBattery, float ICharge, float Ther
     return true;
 }
 
-bool PUComm::RX_SendStatus(int * PUTime, float * VBattery, float * ICharge, float * Therm1T, float * Therm2T)
+bool PUComm::RX_Status(int * PUTime, float * VBattery, float * ICharge, float * Therm1T, float * Therm2T)
 {
     int temp1;
     float temp2, temp3, temp4, temp5;

@@ -19,7 +19,8 @@ enum MCBMessages_t : uint8_t {
     // PIB -> PU (no params)
     PU_SEND_STATUS,
     PU_SEND_PROFILE_RECORD,
-    PE_SEND_TSEN_RECORD,
+    PU_SEND_TSEN_RECORD,
+    PU_RESET,
 
     // PIB -> PU (with params)
     PU_SET_HEATERS,
@@ -71,8 +72,8 @@ public:
 
     // PU -> PIB (with params) -----------------------
 
-    bool TX_SendStatus(int PUTime, float VBattery, float ICharge, float Therm1T, float Therm2T);
-    bool RX_SendStatus(int * PUTime, float * VBattery, float * ICharge, float * Therm1T, float * Therm2T);
+    bool TX_Status(int PUTime, float VBattery, float ICharge, float Therm1T, float Therm2T);
+    bool RX_Status(int * PUTime, float * VBattery, float * ICharge, float * Therm1T, float * Therm2T);
 
     bool TX_Error(const char * error);
     bool RX_Error(char * error, uint8_t buffer_size);
