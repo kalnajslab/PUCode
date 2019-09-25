@@ -55,25 +55,25 @@ public:
     bool TX_LowPower(float survivalT); //go low power, heater set to survival_temp
     bool RX_LowPower(float * survivalT);
 
-    bool TX_Idle(int TSENTMRate); //idle, TSEN TM packet ready every TMRate seconds
-    bool RX_Idle(int * TSENTMRate); //idle, TSEN TM packet ready every TMRate seconds
+    bool TX_Idle(int32_t TSENTMRate); //idle, TSEN TM packet ready every TMRate seconds
+    bool RX_Idle(int32_t * TSENTMRate); //idle, TSEN TM packet ready every TMRate seconds
 
-    bool TX_WarmUp(float FLASH_T, float Heater_1_T, float Heater_2_T, int FLASH_power, int TSEN_power);
-    bool RX_WarmUp(float * FLASH_T, floa * Heater_1_T, float * Heater_2_T, int * FLASH_power, int * TSEN_power);
+    bool TX_WarmUp(float FLASH_T, float Heater_1_T, float Heater_2_T, int8_t FLASH_power, int8_t TSEN_power);
+    bool RX_WarmUp(float * FLASH_T, float * Heater_1_T, float * Heater_2_T, int8_t * FLASH_power, int8_t * TSEN_power);
 
-    bool TX_PreProfile(int preTime, int TM_period, int data_rate, int TSEN_power, int ROPC_power, int FLASH_power);
-    bool RX_PreProfile(int * preTime, int * TM_period, int * data_rate, int * TSEN_power, int * ROPC_power, int * FLASH_power);
+    bool TX_PreProfile(int32_t preTime, int32_t TM_period, int32_t data_rate, int8_t TSEN_power, int8_t ROPC_power, int8_t FLASH_power);
+    bool RX_PreProfile(int32_t * preTime, int32_t * TM_period, int32_t * data_rate, int8_t * TSEN_power, int8_t * ROPC_power, int8_t * FLASH_power);
 
-    bool TX_Profile(int t_down, int t_dwell, int t_up, int rate_profile, int rate_dwell, int TSEN_power, int ROPC_power, int FLASH_power);
-    bool RX_Profile(int * t_down, int * t_dwell, int * t_up, int * rate_profile, int * rate_dwell, int * TSEN_power, int * ROPC_power, int * FLASH_power);
+    bool TX_Profile(int32_t t_down, int32_t t_dwell, int32_t t_up, int32_t rate_profile, int32_t rate_dwell, int8_t TSEN_power, int8_t ROPC_power, int8_t FLASH_power);
+    bool RX_Profile(int32_t * t_down, int32_t * t_dwell, int32_t * t_up, int32_t * rate_profile, int32_t * rate_dwell, int8_t * TSEN_power, int8_t * ROPC_power, int8_t * FLASH_power);
 
-    bool TX_UpdateGPS(int ZephyrGPSTime, double ZephyrGPSlat, double ZephyrGPSlon, int ZephyrGPSAlt);
-    bool RX_UpdateGPS(int * ZephyrGPSTime, double * ZephyrGPSlat, double * ZephyrGPSlon, int * ZephyrGPSAlt);
+    bool TX_UpdateGPS(uint32_t ZephyrGPSTime, float ZephyrGPSlat, float ZephyrGPSlon, uint16_t ZephyrGPSAlt);
+    bool RX_UpdateGPS(uint32_t * ZephyrGPSTime, float * ZephyrGPSlat, float * ZephyrGPSlon, uint16_t * ZephyrGPSAlt);
 
     // PU -> PIB (with params) -----------------------
 
-    bool TX_Status(int PUTime, float VBattery, float ICharge, float Therm1T, float Therm2T);
-    bool RX_Status(int * PUTime, float * VBattery, float * ICharge, float * Therm1T, float * Therm2T);
+    bool TX_Status(uint32_t PUTime, float VBattery, float ICharge, float Therm1T, float Therm2T);
+    bool RX_Status(uint32_t * PUTime, float * VBattery, float * ICharge, float * Therm1T, float * Therm2T);
 
     bool TX_Error(const char * error);
     bool RX_Error(char * error, uint8_t buffer_size);

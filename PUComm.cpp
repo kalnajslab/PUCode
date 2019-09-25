@@ -27,7 +27,7 @@ bool PUComm::TX_SetHeaters(float Heater1T, float Heater2T)
     return true;
 }
 
-bool PUComm::TX_SetHeaters(float * Heater1T, float * Heater2T)
+bool PUComm::RX_SetHeaters(float * Heater1T, float * Heater2T)
 {
     float temp1, temp2;
 
@@ -36,6 +36,8 @@ bool PUComm::TX_SetHeaters(float * Heater1T, float * Heater2T)
    
     *Heater1T = temp1;
     *Heater2T = temp2;
+
+    Serial.println(temp1);
 
     return true;
 }
@@ -60,49 +62,49 @@ bool PUComm::RX_LowPower(float * survivalT)
     return true;
 }
 
-bool PUComm::TX_Idle(int TSENTMRate)
+bool PUComm::TX_Idle(int32_t TSENTMRate)
 {
-    if (!Add_int(TSENTMRate)) return false;
+    if (!Add_int32(TSENTMRate)) return false;
    
     TX_ASCII(PU_GO_IDLE);
 
     return true;
 }
 
-bool PUComm::RX_Idle(int * TSENTMRate)
+bool PUComm::RX_Idle(int32_t * TSENTMRate)
 {
-    int temp1;
+    int32_t temp1;
 
-    if (!Get_int(&temp1)) return false;
+    if (!Get_int32(&temp1)) return false;
    
-    *survivalT = temp1;
+    *TSENTMRate = temp1;
 
     return true;
 }
 
-bool PUComm::TX_WarmUp(float FLASH_T, float Heater_1_T, float Heater_2_T, int FLASH_power, int TSEN_power)
+bool PUComm::TX_WarmUp(float FLASH_T, float Heater_1_T, float Heater_2_T, int8_t FLASH_power, int8_t TSEN_power)
 {
     if (!Add_float(FLASH_T)) return false;
     if (!Add_float(Heater_1_T)) return false;
     if (!Add_float(Heater_2_T)) return false;
-    if (!Add_int(FLASH_power)) return false;
-    if (!Add_int(TSEN_power)) return false;
+    if (!Add_int8(FLASH_power)) return false;
+    if (!Add_int8(TSEN_power)) return false;
    
     TX_ASCII(PU_GO_WARMUP);
 
     return true;
 }
 
-bool PUComm::RX_WarmUp(float * FLASH_T, float * Heater_1_T, float * Heater_2_T, int * FLASH_power, int * TSEN_power)
+bool PUComm::RX_WarmUp(float * FLASH_T, float * Heater_1_T, float * Heater_2_T, int8_t * FLASH_power, int8_t * TSEN_power)
 {
     float temp1, temp2, temp3;
-    int temp4, temp5;
+    int8_t temp4, temp5;
 
     if (!Get_float(&temp1)) return false;
     if (!Get_float(&temp2)) return false;
     if (!Get_float(&temp3)) return false;
-    if (!Get_int(&temp4)) return false;
-    if (!Get_int(&temp5)) return false;
+    if (!Get_int8(&temp4)) return false;
+    if (!Get_int8(&temp5)) return false;
 
     *FLASH_T = temp1;
     *Heater_1_T = temp2;
@@ -113,30 +115,31 @@ bool PUComm::RX_WarmUp(float * FLASH_T, float * Heater_1_T, float * Heater_2_T, 
     return true;
 }
 
-bool PUComm::TX_PreProfile(int preTime, int TM_period, int data_rate, int TSEN_power, int ROPC_power, int FLASH_power)
+bool PUComm::TX_PreProfile(int32_t preTime, int32_t TM_period, int32_t data_rate, int8_t TSEN_power, int8_t ROPC_power, int8_t FLASH_power)
 {
-    if (!Add_int(preTime)) return false;
-    if (!Add_int(TM_period)) return false;
-    if (!Add_int(data_rate)) return false;
-    if (!Add_int(TSEN_power)) return false;
-    if (!Add_int(ROPC_power)) return false;
-    if (!Add_int(FLASH_power)) return false;
+    if (!Add_int32(preTime)) return false;
+    if (!Add_int32(TM_period)) return false;
+    if (!Add_int32(data_rate)) return false;
+    if (!Add_int8(TSEN_power)) return false;
+    if (!Add_int8(ROPC_power)) return false;
+    if (!Add_int8(FLASH_power)) return false;
    
     TX_ASCII(PU_GO_PREPROFILE);
 
     return true;
 }
 
-bool PUComm::RX_PreProfile(int * preTime, int * TM_period, int * data_rate, int * TSEN_power, int * ROPC_power, int * FLASH_power)
+bool PUComm::RX_PreProfile(int32_t * preTime, int32_t * TM_period, int32_t * data_rate, int8_t * TSEN_power, int8_t * ROPC_power, int8_t * FLASH_power)
 {
-    int temp1, temp2, temp3, temp4, temp5, temp6;
+    int32_t temp1, temp2, temp3;
+    int8_t  temp4, temp5, temp6;
 
-    if (!Get_int(&temp1)) return false;
-    if (!Get_int(&temp2)) return false;
-    if (!Get_int(&temp3)) return false;
-    if (!Get_int(&temp4)) return false;
-    if (!Get_int(&temp5)) return false;
-    if (!Get_int(&temp6)) return false;
+    if (!Get_int32(&temp1)) return false;
+    if (!Get_int32(&temp2)) return false;
+    if (!Get_int32(&temp3)) return false;
+    if (!Get_int8(&temp4)) return false;
+    if (!Get_int8(&temp5)) return false;
+    if (!Get_int8(&temp6)) return false;
 
     *preTime = temp1;
     *TM_period = temp2;
@@ -148,34 +151,35 @@ bool PUComm::RX_PreProfile(int * preTime, int * TM_period, int * data_rate, int 
     return true;
 }
 
-bool PUComm::TX_Profile(int t_down, int t_dwell, int t_up, int rate_profile, int rate_dwell, int TSEN_power, int ROPC_power, int FLASH_power)
+bool PUComm::TX_Profile(int32_t t_down, int32_t t_dwell, int32_t t_up, int32_t rate_profile, int32_t rate_dwell, int8_t TSEN_power, int8_t ROPC_power, int8_t FLASH_power)
 {
-    if (!Add_int(t_down)) return false;
-    if (!Add_int(t_dwell)) return false;
-    if (!Add_int(t_up)) return false;
-    if (!Add_int(rate_profile)) return false;
-    if (!Add_int(rate_dwell)) return false;
-    if (!Add_int(TSEN_power)) return false;
-    if (!Add_int(ROPC_power)) return false;
-    if (!Add_int(FLASH_power)) return false;
+    if (!Add_uint16(t_down)) return false;
+    if (!Add_uint16(t_dwell)) return false;
+    if (!Add_uint16(t_up)) return false;
+    if (!Add_uint16(rate_profile)) return false;
+    if (!Add_uint16(rate_dwell)) return false;
+    if (!Add_uint8(TSEN_power)) return false;
+    if (!Add_uint8(ROPC_power)) return false;
+    if (!Add_uint8(FLASH_power)) return false;
    
     TX_ASCII(PU_GO_PROFILE);
 
     return true;
 }
 
-bool PUComm::RX_Profile(int * t_down, int * t_dwell, int * t_up, int * rate_profile, int * rate_dwell, int * TSEN_power, int * ROPC_power, int * FLASH_power)
+bool PUComm::RX_Profile(int32_t * t_down, int32_t * t_dwell, int32_t * t_up, int32_t * rate_profile, int32_t * rate_dwell, int8_t * TSEN_power, int8_t * ROPC_power, int8_t * FLASH_power)
 {
-    int temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp8;
+    int32_t temp1, temp2, temp3, temp4, temp5;
+    int8_t temp6, temp7, temp8;
 
-    if (!Get_int(&temp1)) return false;
-    if (!Get_int(&temp2)) return false;
-    if (!Get_int(&temp3)) return false;
-    if (!Get_int(&temp4)) return false;
-    if (!Get_int(&temp5)) return false;
-    if (!Get_int(&temp6)) return false;
-    if (!Get_int(&temp7)) return false;
-    if (!Get_int(&temp8)) return false;
+    if (!Get_int32(&temp1)) return false;
+    if (!Get_int32(&temp2)) return false;
+    if (!Get_int32(&temp3)) return false;
+    if (!Get_int32(&temp4)) return false;
+    if (!Get_int32(&temp5)) return false;
+    if (!Get_int8(&temp6)) return false;
+    if (!Get_int8(&temp7)) return false;
+    if (!Get_int8(&temp8)) return false;
 
     *t_down = temp1;
     *t_dwell = temp2;
@@ -189,27 +193,28 @@ bool PUComm::RX_Profile(int * t_down, int * t_dwell, int * t_up, int * rate_prof
     return true;
 }
 
-bool PUComm::TX_UpdateGPS(int ZephyrGPSTime, double ZephyrGPSlat, double ZephyrGPSlon, int ZephyrGPSAlt)
+bool PUComm::TX_UpdateGPS(uint32_t ZephyrGPSTime, float ZephyrGPSlat, float ZephyrGPSlon, uint16_t ZephyrGPSAlt)
 {
-    if (!Add_int(ZephyrGPSTime)) return false;
+    if (!Add_uint32(ZephyrGPSTime)) return false;
     if (!Add_float(ZephyrGPSlat)) return false;
     if (!Add_float(ZephyrGPSlon)) return false;
-    if (!Add_int(ZephyrGPSAlt)) return false;
+    if (!Add_uint16(ZephyrGPSAlt)) return false;
     
     TX_ASCII(PU_UPDATE_GPS);
 
     return true;
 }
 
-bool PUComm::RX_UpdateGPS(int * ZephyrGPSTime, double * ZephyrGPSlat, double * ZephyrGPSlon, int * ZephyrGPSAlt)
+bool PUComm::RX_UpdateGPS(uint32_t * ZephyrGPSTime, float * ZephyrGPSlat, float * ZephyrGPSlon, uint16_t * ZephyrGPSAlt)
 {
-    int temp1, temp4;
+    uint32_t temp1;
+    uint16_t temp4;
     float temp2, temp3;
 
-    if (!Get_int(&temp1)) return false;
+    if (!Get_uint32(&temp1)) return false;
     if (!Get_float(&temp2)) return false;
     if (!Get_float(&temp3)) return false;
-    if (!Get_int(&temp4)) return false;
+    if (!Get_uint16(&temp4)) return false;
    
     *ZephyrGPSTime= temp1;
     *ZephyrGPSlat = temp2;
@@ -219,9 +224,9 @@ bool PUComm::RX_UpdateGPS(int * ZephyrGPSTime, double * ZephyrGPSlat, double * Z
     return true;
 }
 
-bool PUComm::TX_Status(int PUTime, float VBattery, float ICharge, float Therm1T, float Therm2T)
+bool PUComm::TX_Status(uint32_t PUTime, float VBattery, float ICharge, float Therm1T, float Therm2T)
 {
-    if (!Add_int(PUTime)) return false;
+    if (!Add_uint32(PUTime)) return false;
     if (!Add_float(VBattery)) return false;
     if (!Add_float(ICharge)) return false;
     if (!Add_float(Therm1T)) return false;
@@ -232,12 +237,12 @@ bool PUComm::TX_Status(int PUTime, float VBattery, float ICharge, float Therm1T,
     return true;
 }
 
-bool PUComm::RX_Status(int * PUTime, float * VBattery, float * ICharge, float * Therm1T, float * Therm2T)
+bool PUComm::RX_Status(uint32_t * PUTime, float * VBattery, float * ICharge, float * Therm1T, float * Therm2T)
 {
-    int temp1;
+    uint32_t temp1;
     float temp2, temp3, temp4, temp5;
 
-    if (!Get_int(&temp1)) return false;
+    if (!Get_uint32(&temp1)) return false;
     if (!Get_float(&temp2)) return false;
     if (!Get_float(&temp3)) return false;
     if (!Get_float(&temp4)) return false;
