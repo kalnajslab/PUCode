@@ -12,10 +12,16 @@
 #include <TimeLib.h>
 #include <SerialComm.h>
 #include "PUComm.h"
+//SD Linbrarier
+#include <SdFat.h>
+#include <SdFatConfig.h>
+
+//Teensy 3.6 specific SD card config
+#define USE_SDIO 1
 
 #define DEBUG_SERIAL Serial
 #define TM_BUFFER_LENGTH 4300
-#define TSEN_BUFFER_LENGTH 900
+#define TSEN_BUFFER_LENGTH 120
 #define TM_RECORD_LENGTH 14   //Length of the TM Record in uint16 - ie twice this in bytes
 #define TSEN_RECORD_LENGTH 4  //Length of the TSEN Record in uint16 - ie twice this in bytes
 
@@ -23,6 +29,7 @@ PULibrary1 PU(13);
 TinyGPSPlus gps;
 SerialComm ser(&GONDOLA_SERIAL);
 PUComm PUComm(&GONDOLA_SERIAL);
+SdFatSdio SD;
 
 /* Global enum to store the current/next mode */
 enum PUModes_t {
@@ -39,7 +46,7 @@ PUModes_t Mode = IDLE;
 int32_t TSENDataRate = 1;  //TSEN polling rate in seconds
 int32_t TSENTMRate = 900; //TSEN TM sending rate in # records to send
 float Heater1Setpoint = 0.0;
-float Heater2Setpoint = -5.0;
+float Heater2Setpoint = -20.0;
 float DeadBand = .5;
 int8_t chargerStatus = HIGH;
 int32_t PreProfilePeriod = 300; //How long to take data docked before a profile
@@ -140,6 +147,8 @@ bool Heater2Status;
  //uint8_t bin_tx[128] = {0};
  //uint16_t bin_tx_length = sizeof(bin_tx);
 
+String TSENFileName;
+
 void setup() {
  FLASH_Buff.reserve(64);
  OPC_Buff.reserve(32);
@@ -153,6 +162,9 @@ void setup() {
   Serial.print("Enabled the watchdog with max countdown of ");
   Serial.print(countdownMS, DEC);
   Serial.println(" milliseconds!");
+
+  // set the Time library to use Teensy 3.6's RTC to keep time
+  setSyncProvider(getTeensy3Time);
   
   pinMode(PULSE_LED, OUTPUT);  //Initialize heart beat LED
   digitalWrite(PULSE_LED, HIGH);
@@ -184,8 +196,6 @@ void setup() {
   //ser.AssignBinaryRXBuffer(bin_rx, 128);
   //ser.AssignBinaryTXBuffer((uint8_t *) bin_tx, bin_tx_length);
 
-  Serial.println("Set up complete!");
-
   analogReference(EXTERNAL); //Set the reference to the external 3V ref
   analogReadResolution(12); // 1 bit = 0.000733 V
   analogReadAveraging(4); 
@@ -194,6 +204,12 @@ void setup() {
   byte settingsArray[] = {0x06, 0xE8, 0x03, 0x80, 0x25, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; //
   PU.configureUblox(settingsArray); 
   
+  if(!SD.begin()){
+   Serial.println("Warning,SD card not inserted");
+  }
+
+  DEBUG_SERIAL.println("Set up complete!");
+
   Mode = IDLE; //start off in Idle mode
 
 }
@@ -614,7 +630,11 @@ int getTSEN(int dataIndex)
   char * pEnd;
 
   if (dataIndex >= TSEN_BUFFER_LENGTH)
-        dataIndex = 1;
+  {
+        writeTSENFile(dataIndex);
+        dataIndex = 0;
+  }
+        
 
   if (dataIndex == 0) //if this is the first sample in the TM packet write the header
     {
@@ -925,37 +945,55 @@ if (FLASH_SERIAL.available()) {
                 case PU_GO_LOWPOWER:
                     tmp1 = PUComm.RX_LowPower(&Heater1Setpoint);
                     ser.TX_Ack(PU_GO_LOWPOWER,tmp1);
-                    DEBUG_SERIAL.println("Received PU_GO_LOWPOWER");
-                    Mode = LOWPOWER;
-                    return true;
+                    if(tmp1)
+                    {
+                        DEBUG_SERIAL.println("Received PU_GO_LOWPOWER");
+                        Mode = LOWPOWER;
+                        return true;
+                    }
                 case PU_GO_IDLE:
                     tmp1 = PUComm.RX_Idle(&TSENTMRate); 
                     ser.TX_Ack(PU_GO_IDLE,tmp1);
-                    DEBUG_SERIAL.println("Received PU_GO_IDLE");
-                    Mode = IDLE;
-                    return true;
+                    if(tmp1)
+                    {
+                        DEBUG_SERIAL.println("Received PU_GO_IDLE");
+                        Mode = IDLE;
+                        return true;
+                    }
                 case PU_GO_WARMUP:
                     tmp1 = PUComm.RX_WarmUp(&FLASH_MinT, &Heater1Setpoint, &Heater2Setpoint, &FLASH_Power, &TSEN_Power);
                     ser.TX_Ack(PU_GO_WARMUP,tmp1);
-                    DEBUG_SERIAL.println("Received PU_GO_WARMUP");
-                    Mode = WARMUP; 
-                    return true;
+                    if(tmp1)
+                    {
+                        DEBUG_SERIAL.println("Received PU_GO_WARMUP");
+                        Mode = WARMUP; 
+                        return true;
+                        }
                 case PU_GO_PREPROFILE:
                     tmp1 = PUComm.RX_PreProfile(&PreProfilePeriod, &PreProfileTMPeriod, &PreProfileDataRate, &TSEN_Power, &ROPC_Power, &FLASH_Power);
                     ser.TX_Ack(PU_GO_PREPROFILE,tmp1);
-                    DEBUG_SERIAL.println("Received PU_GO_PREPROFILE");
-                    Mode = PREPROFILE;
-                    return true;
+                    if(tmp1)
+                    {
+                        DEBUG_SERIAL.println("Received PU_GO_PREPROFILE");
+                        Mode = PREPROFILE;
+                        return true;
+                    }
                 case PU_GO_PROFILE:
                     tmp1 = PUComm.RX_Profile(&ProfileDownTime, &ProfileDwellTime, &ProfileUpTime, &ProfileMovingDataRate, &ProfileDwellDataRate, &TSEN_Power, &ROPC_Power, &FLASH_Power);
                     ser.TX_Ack(PU_GO_PROFILE,tmp1);
-                    DEBUG_SERIAL.println("Received PU_GO_PROFILE");
-                    Mode = PROFILE;
-                    return true;
+                    if(tmp1)
+                    {
+                        DEBUG_SERIAL.println("Received PU_GO_PROFILE");
+                        Mode = PROFILE;
+                        return true;
+                    }
                 case PU_UPDATE_GPS:
-                    PUComm.RX_UpdateGPS(&ZephyrGPSTime, &ZephyrLat, &ZephyrLon, &ZephyrAlt);
-                    DEBUG_SERIAL.println("Received PU_UPDATE_GPS");
-                    return false;
+                    tmp1 = PUComm.RX_UpdateGPS(&ZephyrGPSTime, &ZephyrLat, &ZephyrLon, &ZephyrAlt);
+                    if(tmp1)
+                    {
+                        DEBUG_SERIAL.println("Received PU_UPDATE_GPS");
+                        return false;
+                    }
                 default:
                     ser.TX_Ack(ser.ascii_rx.msg_id,false);
                     return false;   
@@ -1348,4 +1386,66 @@ void printAnalog()
 }
 
 
+bool writeTSENFile(int RecordsToWrite)
+{
+ TSENFileName = "TSEN" + String(year()) + String(month()) + String(day()) + String(hour()) + String(second()) + ".bin";
+ File TSENFile;
 
+ if (RecordsToWrite > TSEN_BUFFER_LENGTH) return false;
+
+  if (!SD.begin()) {
+    Serial.println("initialization failed!");
+    return false;
+  }
+
+  // open a new file, write to file and immediately close it:
+  //Serial.println("Writing to File: " + FileName);
+  char filename[100];
+     TSENFileName.toCharArray(filename, 100);
+     
+  TSENFile = SD.open(filename, FILE_WRITE);
+  
+  // if the file opened okay, write to it:
+  if (TSENFile) {
+    TSENFile.write(TSENData,TSEN_RECORD_LENGTH*RecordsToWrite*2);
+    TSENFile.close();
+    Serial.println("TSEN File Write done.");
+  } else {
+    // if the file didn't open, print an error:
+    Serial.println("error opening file");
+    return false;
+  }
+  return true;
+}
+
+
+
+time_t getTeensy3Time()
+{
+  return Teensy3Clock.get();
+}
+
+/*  code to process time sync messages from the serial port   */
+
+unsigned long processSyncMessage() 
+{
+  unsigned long pctime = 0L;
+  const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013 
+
+  if(Serial.find("T")) {
+     pctime = Serial.parseInt();
+     return pctime;
+     if( pctime < DEFAULT_TIME) { // check the value is a valid time (greater than Jan 1 2013)
+       pctime = 0L; // return 0 to indicate that the time is not valid
+     }
+  }
+  return pctime;
+}
+
+void printDigits(int digits){
+  // utility function for digital clock display: prints preceding colon and leading 0
+  Serial.print(":");
+  if(digits < 10)
+    Serial.print('0');
+  Serial.print(digits);
+}
