@@ -72,8 +72,8 @@ public:
 
     // PU -> PIB (with params) -----------------------
 
-    bool TX_Status(uint32_t PUTime, float VBattery, float ICharge, float Therm1T, float Therm2T);
-    bool RX_Status(uint32_t * PUTime, float * VBattery, float * ICharge, float * Therm1T, float * Therm2T);
+    bool TX_Status(uint32_t PUTime, float VBattery, float ICharge, float Therm1T, float Therm2T, uint8_t HeaterStat);
+    bool RX_Status(uint32_t * PUTime, float * VBattery, float * ICharge, float * Therm1T, float * Therm2T, uint8_t * HeaterStat);
 
     bool TX_Error(const char * error);
     bool RX_Error(char * error, uint8_t buffer_size);

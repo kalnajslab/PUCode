@@ -310,9 +310,10 @@ void idleMode()
       readTemps();
       setHeaters();
       TSENindx = getTSEN(TSENindx);
-      pucomm.TX_Status(now(), V_Battery, I_Charge, HTR1_Therm, HTR2_Therm);
+      pucomm.TX_Status(now(), V_Battery, I_Charge, HTR1_Therm, HTR2_Therm, Heater1Status + Heater2Status*2);
       //GONDOLA_SERIAL.printf("#67,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d\r\n",millis()/1000, HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge, Heater1Status, Heater2Status,TSENData[1][TSENindx]);
       DEBUG_SERIAL.printf("#67,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%d,%d,%5.2f\r\n", now(),HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge,Heater1Status, Heater2Status,TSENData[TSENindx-1][0],TSENData[TSENindx-1][1],gps.satellites.value(),gps.altitude.meters());
+      //updateRTCfromGPS();  //Update the RTC is necessary
      }
      delay(1);  
    }
@@ -583,8 +584,8 @@ int SaveRecord(int dataindx)
 
     else{
         ProfileData[dataindx][0] = (uint16_t)(now() - GPSStartTime); // Elapsed time in seconds
-        ProfileData[dataindx][1] = (uint16_t)((gps.location.lat() - GPSStartLat)*50000.0); //difference in lat 0.00005 degrees
-        ProfileData[dataindx][2] = (uint16_t)((gps.location.lng() - GPSStartLon)*50000.0); //difference in lon 0.00005 degrees
+        ProfileData[dataindx][1] = (int16_t)((gps.location.lat() - GPSStartLat)*50000.0); //difference in lat 0.00005 degrees
+        ProfileData[dataindx][2] = (int16_t)((gps.location.lng() - GPSStartLon)*50000.0); //difference in lon 0.00005 degrees
         ProfileData[dataindx][3] = (uint16_t)(gps.altitude.meters());  //Altitude in meters
         ProfileData[dataindx][4] = (uint16_t)(FLASH_fluor);  //Flash-B FLouresence signal
         ProfileData[dataindx][5] = (uint16_t)(FLASH_bkg);  //Flash-B Background signal
@@ -939,7 +940,7 @@ if (FLASH_SERIAL.available()) {
             switch (pucomm.ascii_rx.msg_id){
                 case PU_SEND_STATUS:
                     tmp3 = now();
-                    tmp1 = pucomm.TX_Status(tmp3,V_Battery,I_Charge, HTR1_Therm, HTR2_Therm);
+                    tmp1 = pucomm.TX_Status(tmp3,V_Battery,I_Charge, HTR1_Therm, HTR2_Therm, Heater1Status + Heater2Status*2);
                     DEBUG_SERIAL.println("Received PU_SEND_STATUS");
                     return false;
                 case PU_SEND_PROFILE_RECORD:
@@ -1503,4 +1504,38 @@ void printDigits(int digits){
   if(digits < 10)
     Serial.print('0');
   Serial.print(digits);
+}
+
+bool updateRTCfromGPS()
+{
+    tmElements_t GPStimeinfo;
+    time_t GPStime;
+    if ((gps.time.age() < 1500) && gps.time.isValid())  //we have a GPS time fix within the last 1.5s
+    {
+        GPStimeinfo.Hour = gps.time.hour(); 
+        GPStimeinfo.Minute = gps.time.minute();
+        GPStimeinfo.Second = gps.time.second();
+        GPStimeinfo.Day = gps.date.day();
+        GPStimeinfo.Month = gps.date.month();
+        GPStimeinfo.Year = gps.date.year() + 30; //gps is since 2000, tmElements_t is since 1970
+        GPStime = makeTime(GPStimeinfo); //convert GPS time to time_t
+
+        if(timeStatus() != timeSet) //if the time is not set, set it
+        {
+            setTime(GPStime);
+            DEBUG_SERIAL.print("Setting RTC to GPS time: "); DEBUG_SERIAL.println(GPStime);
+            return true;
+        }
+
+        if (abs(now() - GPStime) > 1) //if the clock is more than 1 second off
+        {
+            setTime(GPStime);
+            DEBUG_SERIAL.print("Updating RTC to GPS time: "); DEBUG_SERIAL.println(GPStime);
+            return true;
+        }
+
+        return false;
+
+    }
+
 }
