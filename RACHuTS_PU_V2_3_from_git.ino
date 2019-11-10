@@ -20,11 +20,10 @@
 #define USE_SDIO 1
 
 #define DEBUG_SERIAL Serial
-#define TM_BUFFER_LENGTH 5000
-#define TSEN_BUFFER_LENGTH 1900
-#define TM_RECORD_LENGTH 14   //Length of the TM Record in uint16 - ie twice this in bytes (140KB)
-#define TSEN_RECORD_LENGTH 4  //Length of the TSEN Record in uint16 - ie twice this in bytes (8KB)
-#define PUCOMM_ACK_TIMEOUT 6000 //want this to be longer than the NAK timeout on PIB
+#define TM_BUFFER_LENGTH 4300
+#define TSEN_BUFFER_LENGTH 900
+#define TM_RECORD_LENGTH 14   //Length of the TM Record in uint16 - ie twice this in bytes
+#define TSEN_RECORD_LENGTH 4  //Length of the TSEN Record in uint16 - ie twice this in bytes
 
 PULibrary1 PU(13);
 TinyGPSPlus gps;
@@ -45,7 +44,7 @@ PUModes_t Mode = IDLE;
 
 /* PU Configurable parameters */
 int32_t TSENDataRate = 1;  //TSEN polling rate in seconds
-int32_t TSENTMRate = 950; //TSEN TM sending rate in # records to send
+int32_t TSENTMRate = 900; //TSEN TM sending rate in # records to send
 float Heater1Setpoint = 0.0;
 float Heater2Setpoint = -20.0;
 float DeadBand = .5;
@@ -60,13 +59,13 @@ int32_t ProfileDwellTime = 1800; //Seconds to collect data for at bottom dwell
 int32_t ProfileMovingDataRate = 1; //Seconds per record while actively Profiling
 int32_t ProfileDwellDataRate = 10; //Seconds per record while at bottom dwell
 
-int TMRecordsToSend = 200; //The maximum number of TM records to send in one transaction 250*14*2 = 7kb
-int TSENRecordsToSend = 950; //The maximum number of TSEN records to send in one transaction 950 * 4 *2 = 7.6kb
+int TMRecordsToSend = 90; //The maximum number of TM records to send in one transaction
+int TSENRecordsToSend = 1800; //The maximum number of TSEN records to send in one transaction
 int TMRecordOffset = 0;  //pointer to where we are in the TM Record array for sending to PIB
 int TSENRecordOffset = 0; //pointer to where we are in the TSEN Record array for sending to PIB
 
 /* Profile Data Buffer */
-uint16_t ProfileData[TM_BUFFER_LENGTH][TM_RECORD_LENGTH] = {0};  //120.4KB
+uint16_t ProfileData[TM_BUFFER_LENGTH][TM_RECORD_LENGTH];  //120.4KB
 time_t GPSStartTime;  //Unix time_t of starttime of profile from PU clock
 float GPSStartLat;  // Initial Latitude decimal degrees (float32) = 1m
 float GPSStartLon; //Initial Longitude decimal degrees (float32) = 1m
@@ -81,7 +80,7 @@ int TMRecordIndx = 0;
 /* TSEN Globals */
 uint16_t TSENindx = 0;
 uint16_t TSENValues[4];
-uint16_t TSENData[TSEN_BUFFER_LENGTH][TSEN_RECORD_LENGTH] = {0};// 7.2 KBytes 
+uint16_t TSENData[TSEN_BUFFER_LENGTH][TSEN_RECORD_LENGTH];// 7.2 KBytes 
 uint32_t TSENDataStartTime = 0;
 
 /*FLASH Variables, main data 16 bit unsigned ints*/
@@ -202,7 +201,7 @@ void setup() {
   analogReadAveraging(4); 
 
   /*Set up the UBLOX - note make sure it will work above 12km */
-  byte settingsArray[] = {0x06, 0xE8, 0x03, 0x80, 0x25, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00}; //
+  byte settingsArray[] = {0x06, 0xE8, 0x03, 0x80, 0x25, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; //
   PU.configureUblox(settingsArray); 
   
   if(!SD.begin()){
@@ -210,7 +209,7 @@ void setup() {
   }
 
   DEBUG_SERIAL.println("Set up complete!");
-  //pucomm.TX_Error("Reboot - switching to idle \n");
+  pucomm.TX_Error("Reboot - switching to idle \n");
 
   Mode = IDLE; //start off in Idle mode
 
@@ -273,7 +272,7 @@ bool lowPowerMode()
       readTemps();
       setHeaters();
       //GONDOLA_SERIAL.printf("#67,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d\r\n",millis()/1000, HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge, Heater1Status, Heater2Status);
-      DEBUG_SERIAL.printf("#LOWPOWER,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d\r\n", millis()/1000,HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge,Heater1Status, Heater2Status);
+      DEBUG_SERIAL.printf("#67,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d\r\n", millis()/1000,HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge,Heater1Status, Heater2Status);
       delay(1000); //Wait a second to make sure we don't jump back into the loop 
      }
      delay(1);  
@@ -311,10 +310,10 @@ void idleMode()
       readTemps();
       setHeaters();
       TSENindx = getTSEN(TSENindx);
-      //pucomm.TX_Status(now(), V_Battery, I_Charge, HTR1_Therm, HTR2_Therm, Heater1Status + Heater2Status*2);
+      pucomm.TX_Status(now(), V_Battery, I_Charge, HTR1_Therm, HTR2_Therm, Heater1Status + Heater2Status*2);
       //GONDOLA_SERIAL.printf("#67,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d\r\n",millis()/1000, HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge, Heater1Status, Heater2Status,TSENData[1][TSENindx]);
-      DEBUG_SERIAL.printf("#IDLE,%ld,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%d,%d,%5.2f\r\n", now(),HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge,Heater1Status, Heater2Status,TSENData[TSENindx-1][0],TSENData[TSENindx-1][1],gps.satellites.value(),gps.altitude.meters());
-      updateRTCfromGPS();  //Update the RTC is necessary
+      DEBUG_SERIAL.printf("#67,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%d,%d,%5.2f\r\n", now(),HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge,Heater1Status, Heater2Status,TSENData[TSENindx-1][0],TSENData[TSENindx-1][1],gps.satellites.value(),gps.altitude.meters());
+      //updateRTCfromGPS();  //Update the RTC is necessary
      }
      delay(1);  
    }
@@ -356,7 +355,7 @@ bool warmUpMode()
       setHeaters();
       TSENindx = getTSEN(TSENindx);
       //GONDOLA_SERIAL.printf("#68,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f\r\n",millis()/1000, HTR1_Therm, HTR2_Therm, V_Battery, V_Input, I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[TSENindx][1], FLASH_float_T, FLASH_float_lampT );
-      DEBUG_SERIAL.printf("#WARM_UP,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f\r\n", millis()/1000,HTR1_Therm, HTR2_Therm, V_Battery, V_Input, I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[TSENindx][1], FLASH_float_T, FLASH_float_lampT);
+      DEBUG_SERIAL.printf("#68,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f\r\n", millis()/1000,HTR1_Therm, HTR2_Therm, V_Battery, V_Input, I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[TSENindx][1], FLASH_float_T, FLASH_float_lampT);
      }
      delay(1);  
    }
@@ -395,8 +394,8 @@ bool PreProfile()
   if  (!FLASH_Power)
     digitalWrite(FLASH_PWR,  LOW); //turn off FLASH
 
-  uint32_t startTime = millis() + PreProfileDataRate*1000l; 
-  uint32_t endTime = millis() + PreProfilePeriod*1000l;
+  long startTime = millis() + PreProfileDataRate*1000l; 
+  long endTime = millis() + PreProfilePeriod*1000l;
   int dataRecords = 0;
   while(millis() < endTime)
    {
@@ -413,7 +412,7 @@ bool PreProfile()
       TSENindx = getTSEN(TSENindx);
       //GONDOLA_SERIAL.printf("#69,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f\r\n",millis()/1000, HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[1][TSENindx], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm );
       TMRecordIndx = SaveRecord(TMRecordIndx); //update data record
-      DEBUG_SERIAL.printf(  "#PREPROFILE,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f\r\n",now(), HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[1][TSENindx], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm );
+      DEBUG_SERIAL.printf(  "#69,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f\r\n",now(), HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[1][TSENindx], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm );
  
      }
      delay(1);  
@@ -460,7 +459,7 @@ bool Profile()
  // else
  //   digitalWrite(FLASH_PWR,  LOW); //turn off FLASH
 
-  uint32_t startTime = millis() + ProfileMovingDataRate*1000l; 
+  long startTime = millis() + ProfileMovingDataRate*1000l; 
   
  /* Down Profile */
   TMRecordOffset = 0; //reset the TM Indicies before we start a profile
@@ -480,12 +479,11 @@ bool Profile()
       scanAnalog();
       readTemps();
       setHeaters();
-      DEBUG_SERIAL.printf("#PROFILE_DOWN,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f,%d\r\n",now(), HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[TSENindx-1][1], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm, TMRecordIndx );
-     
       TSENindx = getTSEN(TSENindx);
       TMRecordIndx = SaveRecord(TMRecordIndx); //writes a data record to the TM array
       //GONDOLA_SERIAL.printf("#70,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f\r\n",millis()/1000, HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[1][TSENindx], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm );
-       dataRecords++;
+      DEBUG_SERIAL.printf("#70,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f,%d\r\n",now(), HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[TSENindx-1][1], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm, TMRecordIndx );
+      dataRecords++;
      }
    }
 
@@ -506,11 +504,10 @@ bool Profile()
       setHeaters();
       
       //GONDOLA_SERIAL.printf("#71,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f\r\n",millis()/1000, HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[1][TSENindx], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm );
-      DEBUG_SERIAL.printf("#PROFILE_DWELL,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f,%d\r\n",now(), HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[TSENindx-1][1], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm,TMRecordIndx );
-     
       TSENindx = getTSEN(TSENindx);
       TMRecordIndx = SaveRecord(TMRecordIndx); //writes a data record to the TM array
-       dataRecords++;
+      DEBUG_SERIAL.printf("#71,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f,%d\r\n",now(), HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[TSENindx-1][1], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm,TMRecordIndx );
+      dataRecords++;
      }
      delay(1);  
    }
@@ -529,16 +526,15 @@ bool Profile()
       scanAnalog();
       readTemps();
       setHeaters();
-       DEBUG_SERIAL.printf("#PROFILE_UP,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f,%d\r\n",now(), HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[TSENindx-1][1], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm,TMRecordIndx );
-     
+      
       //GONDOLA_SERIAL.printf("#72,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f\r\n",millis()/1000, HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[TSENindx][1], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm );
       TSENindx = getTSEN(TSENindx);
       TMRecordIndx = SaveRecord(TMRecordIndx); //writes a data record to the TM array
+      DEBUG_SERIAL.printf("#72,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%5.2f,%5.2f,%d,%d,%d,%d,%5.2f,%d\r\n",now(), HTR1_Therm, HTR2_Therm, V_Battery, V_Input,I_Charge, I_Flash, Heater1Status, Heater2Status,TSENData[TSENindx-1][1], FLASH_float_T, FLASH_float_lampT,FLASH_fluor, FLASH_bkg, OPC_300, OPC_500, PUMP_Therm,TMRecordIndx );
       dataRecords++;
      }
    }
  writeProfileFile(TMRecordIndx);
- TSENindx = 0; //reset the TSEN indx so that we start a new TSEN run after a profile.
  Mode = IDLE;  
  return true;
 }
@@ -654,7 +650,6 @@ int getTSEN(int dataIndex)
   String header = "#";
   char tsen_buff[32];
   char * pEnd;
-  
 
   if (dataIndex >= TSEN_BUFFER_LENGTH)
   {
@@ -685,7 +680,7 @@ int getTSEN(int dataIndex)
    {
       if ( TSEN_Buff.startsWith("#")) //String starts with the right char
       {
-        if ( dataIndex > TSEN_BUFFER_LENGTH)
+        if ( dataIndex > 1800)
             dataIndex = 0;
     
         TSENData[dataIndex][0] = (uint16_t)(now() - TSENDataStartTime);
@@ -710,9 +705,9 @@ int getTSEN(int dataIndex)
 
 bool sendTM(void)
 {
- /*
+ /* This is essentially a mode
  * The PIB requests TM records
- * The PU sends 250 records from the array
+ * The PU sends 90 records from the array
  * If the record is acked by the PIB then increment pointer to next record
  * If the record is nacked then don't increment pointer and wait for next requests
  * Send a message with message id 'no more records'
@@ -722,114 +717,87 @@ bool sendTM(void)
  // If there are no more records to send, send a 'no more records' msg
  if(TMRecordOffset > TMRecordIndx)
  { 
-   DEBUG_SERIAL.println("[nominal] Profile Records requested but none to send, reset pointers");
    pucomm.TX_ASCII(PU_NO_MORE_RECORDS);
-   writeProfileFile(TMRecordIndx);
-   TMRecordOffset = 0;
-   TMRecordIndx = 0;
-   return true;
  } 
  //check to make sure we have enough records to send and send a reduced number if near the end
  else if((TMRecordOffset + TMRecordsToSend) > TMRecordIndx)
  { 
     int remainingRecords = TMRecordIndx - TMRecordOffset;
-    DEBUG_SERIAL.printf("[nominal]Sending %d Remaining Profile Records\n",remainingRecords);
     pucomm.AssignBinaryTXBuffer((uint8_t *) ProfileData + TMRecordOffset, remainingRecords * TM_RECORD_LENGTH * 2, remainingRecords * TM_RECORD_LENGTH * 2);
     pucomm.TX_Bin(PU_PROFILE_RECORD);
  } 
- //send the full number (250) records if available
+ //send the full number of records if available
  else{
-    DEBUG_SERIAL.printf("[nominal]Sending %d Profile Records\n",TMRecordsToSend);
     pucomm.AssignBinaryTXBuffer((uint8_t *) ProfileData + TMRecordOffset, TMRecordsToSend * TM_RECORD_LENGTH * 2,TMRecordsToSend * TM_RECORD_LENGTH *2);
     pucomm.TX_Bin(PU_PROFILE_RECORD);
  }
 
- uint32_t TimeOut = millis() + PUCOMM_ACK_TIMEOUT; //timeout for an ACK
+ long TimeOut = millis() + 3000; //three second timeout for an ACK
  while(millis() < TimeOut)
     {
-      if(checkForSerial())
+        if(checkForSerial())
             return false;
 
-      if(pucomm.ack_value == true)
+    if(pucomm.ack_id == PU_SEND_PROFILE_RECORD && pucomm.ack_value == true)
         {
-            DEBUG_SERIAL.println("[nominal] TSEN Data ACK'd, Advance index");
-            TMRecordOffset += TMRecordsToSend;
-            pucomm.ack_value = false; //reset the ack_value to false
+            TMRecordOffset += TMRecordsToSend*TM_RECORD_LENGTH*2;
             return true;
         }
     }
-    
-    DEBUG_SERIAL.printf("[warning] profile records not acked, index not advanced\n");
-    return false;
+    return true;
 }
 
 bool sendTSEN(void)
 {
- /*
- * The PIB requests TSEN records and should do this ~ every 15 minutes
- * The PU sends upto 950 records from the array (there should only be 900 to send)
+ /* This is essentially a mode
+ * The PIB requests TSEN records
+ * The PU sends 900 records from the array
  * If the record is acked by the PIB then increment pointer to next record
  * If the record is nacked then don't increment pointer and wait for next requests
  * Send a message with message id 'no more records'
  */
  pucomm.ack_value = false; //reset the ack_value to false
 
- // If there are no more records to send, send a 'no more records' msg
+ // If there are no more records to send, send a now more records message
  if(TSENRecordOffset > TSENindx)
  { 
-   DEBUG_SERIAL.println("[nominal] TSEN Records requested but none to send, reset pointers");
    pucomm.TX_ASCII(PU_NO_MORE_RECORDS);
-   writeTSENFile(TSENindx);
-   TSENRecordOffset = 0;
-   TSENindx = 0;
-   return true;
  } 
  //check to make sure we have enough records to send and send a reduced number if near the end
  else if((TSENRecordOffset + TSENRecordsToSend) > TSENindx)
  { 
     int remainingRecords = TSENindx - TSENRecordOffset;
-    DEBUG_SERIAL.printf("[nominal]Sending %d Remaining TSEN Records, TSENOffset: %d, TSENindx: %d\n",remainingRecords, TSENRecordOffset, TSENindx);
     pucomm.AssignBinaryTXBuffer((uint8_t *) TSENData + TSENRecordOffset, remainingRecords * TSEN_RECORD_LENGTH * 2, remainingRecords * TSEN_RECORD_LENGTH * 2);
     pucomm.TX_Bin(PU_TSEN_RECORD);
  } 
- //send the full number (250) records if available
+ //send the full number of records if available
  else{
-    DEBUG_SERIAL.printf("[nominal]Sending %d TSEN Records\n",TSENRecordsToSend);
     pucomm.AssignBinaryTXBuffer((uint8_t *) TSENData + TSENRecordOffset, TSENRecordsToSend * TSEN_RECORD_LENGTH * 2,TSENRecordsToSend * TSEN_RECORD_LENGTH *2);
     pucomm.TX_Bin(PU_TSEN_RECORD);
  }
 
- uint32_t TimeOut = millis() + PUCOMM_ACK_TIMEOUT; //six second timeout for an ACK
+ long TimeOut = millis() + 3000; //three second timeout for an ACK
  while(millis() < TimeOut)
     {
-      SerComRX();
-      delay(200);
-
-      if(pucomm.ack_value == true)
+    if(checkForSerial())
+        return false;
+    
+    if(pucomm.ack_id == PU_SEND_TSEN_RECORD && pucomm.ack_value == true)
         {
-            TSENRecordOffset += TSENRecordsToSend;
-            DEBUG_SERIAL.print("[nominal] TSEN Data ACK'd, Advance index to: "); DEBUG_SERIAL.println(TSENRecordOffset);
-            pucomm.ack_value = false;
+            TSENRecordOffset += TSENRecordsToSend*TSEN_RECORD_LENGTH*2;
             return true;
         }
     }
-    
-    DEBUG_SERIAL.printf("[warning] TSEN records not acked, index not advanced\n");
-    return false;
+    return true;
 }
+
 
 
 void readTemps()
 {
   HTR1_Therm = PU.MeasureLTC2983(3); //OPC side of PU
-  if (HTR1_Therm < -100)
-    PU.ResetLTC2983();
   HTR2_Therm = PU.MeasureLTC2983(5); // Main board side of PU
-  if (HTR2_Therm < -100)
-    PU.ResetLTC2983();
   PUMP_Therm = PU.MeasureLTC2983(7);  // OPC Pump
-  if(PUMP_Therm < -100)
-    PU.ResetLTC2983();
   //Spare_Therm = PU.MeasureLTC2983(9); 
 }
 
@@ -947,8 +915,7 @@ if (FLASH_SERIAL.available()) {
   }
 
   if (GPS_SERIAL.available()) {
-    char c = GPS_SERIAL.read();
-    gps.encode(c);
+    gps.encode(GPS_SERIAL.read());
   }
 
   return false;
@@ -963,6 +930,7 @@ if (FLASH_SERIAL.available()) {
      * and update to the new mode
      */
      int8_t tmp1;
+     int32_t tmp2;
      uint32_t tmp3;
 
      switch (pucomm.RX()) {
@@ -985,8 +953,8 @@ if (FLASH_SERIAL.available()) {
                     return false;
                 case PU_RESET:
                     pucomm.TX_Ack(PU_RESET,true);
-                    DEBUG_SERIAL.println("[warning] Rebooting in 2 seconds");
-                    delay(2000);
+                    DEBUG_SERIAL.println("Rebooting in 3 seconds");
+                    delay(3000);
                     WRITE_RESTART(0x5FA0004);
                     return false;
                 case PU_SET_HEATERS:
@@ -1035,9 +1003,6 @@ if (FLASH_SERIAL.available()) {
                         return true;
                     }
                 case PU_GO_PROFILE:
-                    if(pucomm.ascii_rx.checksum_valid)
-                      DEBUG_SERIAL.println("Recevied Valid Profile Checksum");
-
                     tmp1 = pucomm.RX_Profile(&ProfileDownTime, &ProfileDwellTime, &ProfileUpTime, &ProfileMovingDataRate, &ProfileDwellDataRate, &TSEN_Power, &ROPC_Power, &FLASH_Power);
                     pucomm.TX_Ack(PU_GO_PROFILE,tmp1);
                     if(tmp1)
@@ -1059,9 +1024,9 @@ if (FLASH_SERIAL.available()) {
                     return false;   
             }
             case ACK_MESSAGE:
-                DEBUG_SERIAL.print("ACK/NAK for msg: "); DEBUG_SERIAL.println(pucomm.ack_id);
+                Serial.print("ACK/NAK for msg: "); Serial.println(pucomm.ack_id);
                 Serial.print("Value: ");
-                pucomm.ack_value ? DEBUG_SERIAL.println("ACK") : DEBUG_SERIAL.println("NAK");
+                pucomm.ack_value ? Serial.println("ACK") : Serial.println("NAK");
                 return false;
             case NO_MESSAGE:
             default:
@@ -1235,10 +1200,16 @@ void parseCommand(String commandToParse)
   int int1 = 0;
   int int2 = 0;
   int int3 = 0;
+  int int4 = 0;
+  bool bool1 = false;
+  bool bool2 = false;
+  bool bool3 = false;
   float flt1 = 0;
   float flt2 = 0;
   float flt3 = 0;
-  
+
+  boolean newData = false;
+
   if(commandToParse.startsWith("#stop"))
   {
     DEBUG_SERIAL.println("Switching to idle Mode");
@@ -1537,27 +1508,34 @@ void printDigits(int digits){
 
 bool updateRTCfromGPS()
 {
-    if ((gps.time.age() < 1500) && (gps.satellites.value() > 4))  //we have a GPS time fix within the last 1.5s
+    tmElements_t GPStimeinfo;
+    time_t GPStime;
+    if ((gps.time.age() < 1500) && gps.time.isValid())  //we have a GPS time fix within the last 1.5s
     {
+        GPStimeinfo.Hour = gps.time.hour(); 
+        GPStimeinfo.Minute = gps.time.minute();
+        GPStimeinfo.Second = gps.time.second();
+        GPStimeinfo.Day = gps.date.day();
+        GPStimeinfo.Month = gps.date.month();
+        GPStimeinfo.Year = gps.date.year() + 30; //gps is since 2000, tmElements_t is since 1970
+        GPStime = makeTime(GPStimeinfo); //convert GPS time to time_t
+
         if(timeStatus() != timeSet) //if the time is not set, set it
         {
-            setTime(gps.time.hour(),gps.time.minute(),gps.time.second(),gps.date.day(),gps.date.month(),gps.date.year());
-            DEBUG_SERIAL.println("Setting RTC to GPS time "); 
+            setTime(GPStime);
+            DEBUG_SERIAL.print("Setting RTC to GPS time: "); DEBUG_SERIAL.println(GPStime);
             return true;
         }
 
-        if (abs(minute() * 60 + second() - (gps.time.minute()*60 +gps.time.second())) > 2) //if the clock is more than 1 second off
+        if (abs(now() - GPStime) > 1) //if the clock is more than 1 second off
         {
-            DEBUG_SERIAL.print("Updating RTC to GPS time, offset: ");
-            DEBUG_SERIAL.println((gps.time.hour()*3600 + gps.time.minute()*60 + gps.time.second()) - (hour()*3600 + minute()*60 + second()));
-            setTime(gps.time.hour(),gps.time.minute(),gps.time.second(),gps.date.day(),gps.date.month(),gps.date.year());
+            setTime(GPStime);
+            DEBUG_SERIAL.print("Updating RTC to GPS time: "); DEBUG_SERIAL.println(GPStime);
             return true;
         }
 
         return false;
 
     }
-    return false;
 
 }
-
