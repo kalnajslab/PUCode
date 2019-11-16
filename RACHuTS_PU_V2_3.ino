@@ -50,8 +50,8 @@ float Heater1Setpoint = 0.0;
 float Heater2Setpoint = -20.0;
 float DeadBand = .5;
 int8_t chargerStatus = HIGH;
-int32_t PreProfilePeriod = 300; //How long to take data docked before a profile
-float FLASH_MinT = -20.0;  //Minimum operating temp or FLASH
+int32_t PreProfilePeriod = 120; //How long to take data docked before a profile
+float FLASH_MinT = -25.0;  //Minimum operating temp or FLASH
 int32_t PreProfileTMPeriod = 10; //number of records per TM in PreProfile
 int32_t PreProfileDataRate = 10; //Seconds between data records in PreProfile
 int32_t ProfileDownTime = 2000; //Seconds to collect data for on descent
@@ -313,7 +313,7 @@ void idleMode()
       TSENindx = getTSEN(TSENindx);
       //pucomm.TX_Status(now(), V_Battery, I_Charge, HTR1_Therm, HTR2_Therm, Heater1Status + Heater2Status*2);
       //GONDOLA_SERIAL.printf("#67,%d,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d\r\n",millis()/1000, HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge, Heater1Status, Heater2Status,TSENData[1][TSENindx]);
-      DEBUG_SERIAL.printf("#IDLE,%ld,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%d,%d,%5.2f\r\n", now(),HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge,Heater1Status, Heater2Status,TSENData[TSENindx-1][0],TSENData[TSENindx-1][1],gps.satellites.value(),gps.altitude.meters());
+      DEBUG_SERIAL.printf("#IDLE,%ld,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%d,%d,%d,%d,%d,%d,%d,%5.2f\r\n", now(),HTR1_Therm, HTR2_Therm, PUMP_Therm, V_Battery, V_Input, I_Charge,Heater1Status, Heater2Status,TSENData[TSENindx-1][0],TSENData[TSENindx-1][1],TSENData[TSENindx-1][2],TSENData[TSENindx-1][3],gps.satellites.value(),gps.altitude.meters());
       updateRTCfromGPS();  //Update the RTC is necessary
      }
      delay(1);  
@@ -730,17 +730,17 @@ bool sendTM(void)
    return true;
  } 
  //check to make sure we have enough records to send and send a reduced number if near the end
- else if((TMRecordOffset + TMRecordsToSend) > TMRecordIndx)
+ else if((TMRecordOffset + TMRecordsToSend) > TMRecordIndx )
  { 
     int remainingRecords = TMRecordIndx - TMRecordOffset;
-    DEBUG_SERIAL.printf("[nominal]Sending %d Remaining Profile Records\n",remainingRecords);
-    pucomm.AssignBinaryTXBuffer((uint8_t *) ProfileData + TMRecordOffset, remainingRecords * TM_RECORD_LENGTH * 2, remainingRecords * TM_RECORD_LENGTH * 2);
+    DEBUG_SERIAL.printf("[nominal]Sending %d Remaining Profile Records, pointer at: %d\n",remainingRecords, ProfileData + TMRecordOffset );
+    pucomm.AssignBinaryTXBuffer((uint8_t *) ProfileData + TMRecordOffset * TM_RECORD_LENGTH * 2, remainingRecords * TM_RECORD_LENGTH * 2, remainingRecords * TM_RECORD_LENGTH * 2);
     pucomm.TX_Bin(PU_PROFILE_RECORD);
  } 
- //send the full number (250) records if available
+ //send the full number (200) records if available
  else{
-    DEBUG_SERIAL.printf("[nominal]Sending %d Profile Records\n",TMRecordsToSend);
-    pucomm.AssignBinaryTXBuffer((uint8_t *) ProfileData + TMRecordOffset, TMRecordsToSend * TM_RECORD_LENGTH * 2,TMRecordsToSend * TM_RECORD_LENGTH *2);
+    DEBUG_SERIAL.printf("[nominal]Sending %d Profile Records, pointer at: %d \n",TMRecordsToSend, ProfileData + TMRecordOffset);
+    pucomm.AssignBinaryTXBuffer((uint8_t *) ProfileData + TMRecordOffset * TM_RECORD_LENGTH * 2, TMRecordsToSend * TM_RECORD_LENGTH * 2,TMRecordsToSend * TM_RECORD_LENGTH *2);
     pucomm.TX_Bin(PU_PROFILE_RECORD);
  }
 
@@ -752,8 +752,9 @@ bool sendTM(void)
 
       if(pucomm.ack_value == true)
         {
-            DEBUG_SERIAL.println("[nominal] TSEN Data ACK'd, Advance index");
+            
             TMRecordOffset += TMRecordsToSend;
+            DEBUG_SERIAL.printf("[nominal] TSEN Data ACK'd, Advance offset to: %d", TMRecordOffset);
             pucomm.ack_value = false; //reset the ack_value to false
             return true;
         }
@@ -789,13 +790,13 @@ bool sendTSEN(void)
  { 
     int remainingRecords = TSENindx - TSENRecordOffset;
     DEBUG_SERIAL.printf("[nominal]Sending %d Remaining TSEN Records, TSENOffset: %d, TSENindx: %d\n",remainingRecords, TSENRecordOffset, TSENindx);
-    pucomm.AssignBinaryTXBuffer((uint8_t *) TSENData + TSENRecordOffset, remainingRecords * TSEN_RECORD_LENGTH * 2, remainingRecords * TSEN_RECORD_LENGTH * 2);
+    pucomm.AssignBinaryTXBuffer((uint8_t *) TSENData + TSENRecordOffset * TSEN_RECORD_LENGTH * 2, remainingRecords * TSEN_RECORD_LENGTH * 2, remainingRecords * TSEN_RECORD_LENGTH * 2);
     pucomm.TX_Bin(PU_TSEN_RECORD);
  } 
- //send the full number (250) records if available
+ //send the full number (200) records if available
  else{
     DEBUG_SERIAL.printf("[nominal]Sending %d TSEN Records\n",TSENRecordsToSend);
-    pucomm.AssignBinaryTXBuffer((uint8_t *) TSENData + TSENRecordOffset, TSENRecordsToSend * TSEN_RECORD_LENGTH * 2,TSENRecordsToSend * TSEN_RECORD_LENGTH *2);
+    pucomm.AssignBinaryTXBuffer((uint8_t *) TSENData + TSENRecordOffset * TSEN_RECORD_LENGTH * 2, TSENRecordsToSend * TSEN_RECORD_LENGTH * 2,TSENRecordsToSend * TSEN_RECORD_LENGTH *2);
     pucomm.TX_Bin(PU_TSEN_RECORD);
  }
 
@@ -1082,103 +1083,76 @@ bool parseFLASH()
 
   if ( FLASH_Buff.startsWith(header))
   {
-    //DEBUG_SERIAL.println("Parsing FLASH");
     sub = FLASH_Buff.substring(11,15);
-    //DEBUG_SERIAL.println(sub);
     sub.toCharArray(subChar,5); 
-    //DEBUG_SERIAL.println(subChar);
-    FLASH_time = (uint16_t)strtol(subChar,NULL,16);
+    FLASH_time = (uint16_t)strtol(subChar,NULL,16); //Frames from power on
     DEBUG_SERIAL.print("Flash Time: ");
     DEBUG_SERIAL.print(FLASH_time);
     
     sub = FLASH_Buff.substring(15,19);
-    //DEBUG_SERIAL.println(sub);
     sub.toCharArray(subChar,5); 
-    //DEBUG_SERIAL.println(subChar);
-    FLASH_fluor = (uint16_t)strtol(subChar,NULL,16);
+    FLASH_fluor = (uint16_t)strtol(subChar,NULL,16); //fluorescence signal count rate (S) in counts
     DEBUG_SERIAL.print(" Fluor: ");
     DEBUG_SERIAL.print( FLASH_fluor);
 
     sub = FLASH_Buff.substring(19,23);
-    //DEBUG_SERIAL.println(sub);
     sub.toCharArray(subChar,5); 
-    //DEBUG_SERIAL.println(subChar);
-    FLASH_bkg = (uint16_t)strtol(subChar,NULL,16);
+    FLASH_bkg = (uint16_t)strtol(subChar,NULL,16); //background signal count rate in counts
     DEBUG_SERIAL.print(" bkg: ");
     DEBUG_SERIAL.print(FLASH_bkg);
 
     sub = FLASH_Buff.substring(23,27);
-    //DEBUG_SERIAL.println(sub);
     sub.toCharArray(subChar,5); 
-    //DEBUG_SERIAL.println(subChar);
     temp_int = strtol(subChar,NULL,16);
     FLASH_intT = (uint16_t)temp_int;
+    //‘Internal temperature’: Temperature of PMT unit (tpmt), degrees Celsius Tpmt =-21.103*LN(tpmt *0.00061*30/(4096*0.00061-(tpmt *0.00061))) + 97.106
     FLASH_float_T = -21.103*log(double(temp_int) *0.00061*30/(4096*0.00061-(double(temp_int)*0.00061))) + 97.106;
     DEBUG_SERIAL.print(" PMT T: ");
     DEBUG_SERIAL.print(FLASH_float_T);
 
     sub = FLASH_Buff.substring(27,31);
-    //DEBUG_SERIAL.println(sub);
     sub.toCharArray(subChar,5); 
-    //DEBUG_SERIAL.println(subChar);
     temp_int = strtol(subChar,NULL,16);
-    //FLASH_pmtV = (uint16_t) temp_int;
-    FLASH_pmtV = float(temp_int)*0.305;
+    FLASH_pmtV = float(temp_int)*0.305; //‘PMT voltage’: photomultiplier voltage (Upmt), Volts Upmt= Upmt *0.305
     DEBUG_SERIAL.print(" PMT V: ");
     DEBUG_SERIAL.print(FLASH_pmtV);
 
     sub = FLASH_Buff.substring(31,35);
-    //DEBUG_SERIAL.println(sub);
     sub.toCharArray(subChar,5); 
-    //DEBUG_SERIAL.println(subChar);
     temp_int = strtol(subChar,NULL,16);
-    //FLASH_lampI = (uint16_t) temp_int;;
-    FLASH_lampI = float(temp_int)*0.0061;
+    FLASH_lampI = float(temp_int)*0.0061; //‘Lamp current’: current of VUV lamp (Ilamp), mA. Ilamp= Ilamp *0.0061
     DEBUG_SERIAL.print(" Lamp I: ");
     DEBUG_SERIAL.print(FLASH_lampI);
     
     sub = FLASH_Buff.substring(35,39);
-    //DEBUG_SERIAL.println(sub);
     sub.toCharArray(subChar,5); 
-    //DEBUG_SERIAL.println(subChar);
     temp_int = strtol(subChar,NULL,16);
-    //FLASH_lampV = (uint16_t) temp_int;
     FLASH_lampV = float(temp_int)*0.123;
-    DEBUG_SERIAL.print(" Lamp V: ");
+    DEBUG_SERIAL.print(" Lamp V: "); //‘Lamp current’: current of VUV lamp (Ilamp), mA. Ilamp= Ilamp *0.0061
     DEBUG_SERIAL.print(FLASH_lampV);
 
     sub = FLASH_Buff.substring(39,43);
-    //DEBUG_SERIAL.println(sub);
     sub.toCharArray(subChar,5); 
-    //DEBUG_SERIAL.println(subChar);
     temp_int = strtol(subChar,NULL,16);
-    FLASH_lampT = (uint16_t) temp_int;
+    FLASH_lampT = (uint16_t) temp_int; //‘Lamp temperature’: Temperature of VUV lamp (Tlamp), degrees Celsius Tlamp =-21.103*LN(Tlamp *0.00061*30/(4096*0.00061-( Tlamp *0.00061))) + 97.106
     FLASH_float_lampT = -21.103*log(double(temp_int) *0.00061*30/(4096*0.00061-(double(temp_int)*0.00061))) + 97.106;
     DEBUG_SERIAL.print(" Lamp T: ");
     DEBUG_SERIAL.print(FLASH_float_lampT);
 
-     sub = FLASH_Buff.substring(43,47);
-    //DEBUG_SERIAL.println(sub);
+    sub = FLASH_Buff.substring(43,47);
     sub.toCharArray(subChar,5); 
-    //DEBUG_SERIAL.println(subChar);
     temp_int = strtol(subChar,NULL,16);
-    //FLASH_V = (uint16_t) temp_int;
-    FLASH_V = float(temp_int)*0.003477;
+    FLASH_V = float(temp_int)*0.003477;  //Supply voltage’: Supply voltage (Ubat), volts, Ubat= Ubat *0.003477
     DEBUG_SERIAL.print(" In V: ");
     DEBUG_SERIAL.print(FLASH_V);
 
     sub = FLASH_Buff.substring(47,51);
-    //DEBUG_SERIAL.println(sub);
     sub.toCharArray(subChar,5); 
-    //DEBUG_SERIAL.println(subChar);
-    temp_int = strtol(subChar,NULL,16);
-    //FLASH_T = (uint16_t) temp_int;
-    
+    temp_int = strtol(subChar,NULL,16);  //'Controller temperature' Temperature of microcontroller (Tmc), degrees Celsius Tmc =(Tmc *0.00061-0.78)/-0.0013+25
     FLASH_T = (float(temp_int) *0.00061-0.78)/-0.0013+25.0;
     DEBUG_SERIAL.print(" uC T: ");
     DEBUG_SERIAL.println(FLASH_T);
 
-   
     return true;
   }
 
@@ -1385,7 +1359,7 @@ void parseCommand(String commandToParse)
       commandToParse = "";
       DEBUG_Buff = "";
       GONDOLA_Buff = "";
-     // profile(int1, int2, int3);
+      Profile();
       
     }
     else
@@ -1548,7 +1522,7 @@ bool updateRTCfromGPS()
 
         if (abs(minute() * 60 + second() - (gps.time.minute()*60 +gps.time.second())) > 2) //if the clock is more than 1 second off
         {
-            DEBUG_SERIAL.print("Updating RTC to GPS time, offset: ");
+            DEBUG_SERIAL.printf("Updating RTC to GPS time from %d:%d:%d to %u:%u:%u\n", hour(), minute(), second(), gps.time.hour(), gps.time.minute(), gps.time.second());
             DEBUG_SERIAL.println((gps.time.hour()*3600 + gps.time.minute()*60 + gps.time.second()) - (hour()*3600 + minute()*60 + second()));
             setTime(gps.time.hour(),gps.time.minute(),gps.time.second(),gps.date.day(),gps.date.month(),gps.date.year());
             return true;
