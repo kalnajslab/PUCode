@@ -2,7 +2,7 @@
  *  PUComm.cpp
  *  Author:  Lars Kalnajs
  *  Created: September 2019
- *  
+ *
  *  This file implements an Arduino library (C++ class) that implements the communication
  *  between the PIB and PU. The class inherits its protocol from the SerialComm
  *  class.
@@ -21,7 +21,7 @@ bool PUComm::TX_SetHeaters(float Heater1T, float Heater2T)
 {
     if (!Add_float(Heater1T)) return false;
     if (!Add_float(Heater2T)) return false;
-   
+
     TX_ASCII(PU_SET_HEATERS);
 
     return true;
@@ -33,7 +33,7 @@ bool PUComm::RX_SetHeaters(float * Heater1T, float * Heater2T)
 
     if (!Get_float(&temp1)) return false;
     if (!Get_float(&temp2)) return false;
-   
+
     *Heater1T = temp1;
     *Heater2T = temp2;
 
@@ -45,7 +45,7 @@ bool PUComm::RX_SetHeaters(float * Heater1T, float * Heater2T)
 bool PUComm::TX_LowPower(float survivalT)
 {
     if (!Add_float(survivalT)) return false;
-   
+
     TX_ASCII(PU_GO_LOWPOWER);
 
     return true;
@@ -56,7 +56,7 @@ bool PUComm::RX_LowPower(float * survivalT)
     float temp1;
 
     if (!Get_float(&temp1)) return false;
-   
+
     *survivalT = temp1;
 
     return true;
@@ -65,7 +65,7 @@ bool PUComm::RX_LowPower(float * survivalT)
 bool PUComm::TX_Idle(int32_t TSENTMRate)
 {
     if (!Add_int32(TSENTMRate)) return false;
-   
+
     TX_ASCII(PU_GO_IDLE);
 
     return true;
@@ -76,7 +76,7 @@ bool PUComm::RX_Idle(int32_t * TSENTMRate)
     int32_t temp1;
 
     if (!Get_int32(&temp1)) return false;
-   
+
     *TSENTMRate = temp1;
 
     return true;
@@ -89,7 +89,7 @@ bool PUComm::TX_WarmUp(float FLASH_T, float Heater_1_T, float Heater_2_T, int8_t
     if (!Add_float(Heater_2_T)) return false;
     if (!Add_int8(FLASH_power)) return false;
     if (!Add_int8(TSEN_power)) return false;
-   
+
     TX_ASCII(PU_GO_WARMUP);
 
     return true;
@@ -123,7 +123,7 @@ bool PUComm::TX_PreProfile(int32_t preTime, int32_t TM_period, int32_t data_rate
     if (!Add_int8(TSEN_power)) return false;
     if (!Add_int8(ROPC_power)) return false;
     if (!Add_int8(FLASH_power)) return false;
-   
+
     TX_ASCII(PU_GO_PREPROFILE);
 
     return true;
@@ -161,7 +161,7 @@ bool PUComm::TX_Profile(int32_t t_down, int32_t t_dwell, int32_t t_up, int32_t r
     if (!Add_uint8(TSEN_power)) return false;
     if (!Add_uint8(ROPC_power)) return false;
     if (!Add_uint8(FLASH_power)) return false;
-   
+
     TX_ASCII(PU_GO_PROFILE);
 
     return true;
@@ -199,7 +199,7 @@ bool PUComm::TX_UpdateGPS(uint32_t ZephyrGPSTime, float ZephyrGPSlat, float Zeph
     if (!Add_float(ZephyrGPSlat)) return false;
     if (!Add_float(ZephyrGPSlon)) return false;
     if (!Add_uint16(ZephyrGPSAlt)) return false;
-    
+
     TX_ASCII(PU_UPDATE_GPS);
 
     return true;
@@ -215,7 +215,7 @@ bool PUComm::RX_UpdateGPS(uint32_t * ZephyrGPSTime, float * ZephyrGPSlat, float 
     if (!Get_float(&temp2)) return false;
     if (!Get_float(&temp3)) return false;
     if (!Get_uint16(&temp4)) return false;
-   
+
     *ZephyrGPSTime= temp1;
     *ZephyrGPSlat = temp2;
     *ZephyrGPSlon = temp3;
@@ -232,7 +232,7 @@ bool PUComm::TX_Status(uint32_t PUTime, float VBattery, float ICharge, float The
     if (!Add_float(Therm1T)) return false;
     if (!Add_float(Therm2T)) return false;
     if (!Add_uint8(HeaterStat)) return false;
-   
+
     TX_ASCII(PU_STATUS);
 
     return true;
@@ -266,9 +266,7 @@ bool PUComm::RX_Status(uint32_t * PUTime, float * VBattery, float * ICharge, flo
 
 bool PUComm::TX_Error(const char * error)
 {
-    if (Add_string(error)) return false;
-
-    TX_ASCII(PU_ERROR);
+    TX_String(PU_ERROR, error);
 
     return true;
 }
