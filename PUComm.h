@@ -30,6 +30,8 @@ enum PUMessages_t : uint8_t {
     PU_GO_PREPROFILE, //9
     PU_GO_PROFILE, //10
     PU_UPDATE_GPS, //11
+    PU_LORA_STATUS,
+    PU_LORA_TM,
 
     // PU -> PIB (no params)
     PU_IS_DOCKED, //12
@@ -64,11 +66,17 @@ public:
     bool TX_PreProfile(int32_t preTime, int32_t TM_period, int32_t data_rate, int8_t TSEN_power, int8_t ROPC_power, int8_t FLASH_power);
     bool RX_PreProfile(int32_t * preTime, int32_t * TM_period, int32_t * data_rate, int8_t * TSEN_power, int8_t * ROPC_power, int8_t * FLASH_power);
 
-    bool TX_Profile(int32_t t_down, int32_t t_dwell, int32_t t_up, int32_t rate_profile, int32_t rate_dwell, int8_t TSEN_power, int8_t ROPC_power, int8_t FLASH_power);
-    bool RX_Profile(int32_t * t_down, int32_t * t_dwell, int32_t * t_up, int32_t * rate_profile, int32_t * rate_dwell, int8_t * TSEN_power, int8_t * ROPC_power, int8_t * FLASH_power);
+    bool TX_Profile(int32_t t_down, int32_t t_dwell, int32_t t_up, int32_t rate_profile, int32_t rate_dwell, int8_t TSEN_power, int8_t ROPC_power, int8_t FLASH_power, int8_t LoRa_TM);
+    bool RX_Profile(int32_t * t_down, int32_t * t_dwell, int32_t * t_up, int32_t * rate_profile, int32_t * rate_dwell, int8_t * TSEN_power, int8_t * ROPC_power, int8_t * FLASH_power, int8_t * LoRa_TM);
 
     bool TX_UpdateGPS(uint32_t ZephyrGPSTime, float ZephyrGPSlat, float ZephyrGPSlon, uint16_t ZephyrGPSAlt);
     bool RX_UpdateGPS(uint32_t * ZephyrGPSTime, float * ZephyrGPSlat, float * ZephyrGPSlon, uint16_t * ZephyrGPSAlt);
+
+    bool TX_PULoRaStatus(uint16_t LoRaTXStatus);
+    bool RX_PULoRaStatus(uint16_t * LoRaTXStatus);
+
+    bool TX_PULoRaTM(uint8_t LoRaTXTM);
+    bool RX_PULoRaTM(uint8_t * LoRaTXTM);
 
     // PU -> PIB (with params) -----------------------
 
